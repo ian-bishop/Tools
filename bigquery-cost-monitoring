@@ -1,0 +1,27 @@
+-- tag: cost monitoring - tag ends/
+
+SELECT  
+	protopayload_auditlog.authenticationInfo.principalEmail as user,
+	cast(5.0*
+		(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalProcessedBytes/POWER(2,40))
+    as numeric
+		) as queryCostInUSD
+    , protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalProcessedBytes
+    , protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalBilledBytes
+    , cast(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalProcessedBytes / 1000000000000 as numeric) as tb
+    , protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobConfiguration.query.query
+    , REGEXP_EXTRACT(protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobConfiguration.query.query, r'-- tag: (.*) - tag ends/') as report
+    , timestamp
+    , round(CAST(FORMAT_TIMESTAMP('%H',timestamp) as int64),0) hh
+    , CAST(FORMAT_TIMESTAMP('%M',timestamp) as int64) minutes
+		 
+
+FROM `your-project.logs.cloudaudit_googleapis_com_data_access` 
+WHERE protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.eventName="query_job_completed"
+AND 
+	protopayload_auditlog.servicedata_v1_bigquery.jobCompletedEvent.job.jobStatistics.totalProcessedBytes 
+				IS NOT NULL
+AND 
+    DATE(timestamp) >= PARSE_DATE('%Y%m%d',  @DS_START_DATE)
+AND 
+    DATE(timestamp) <= PARSE_DATE('%Y%m%d',  @DS_END_DATE)
