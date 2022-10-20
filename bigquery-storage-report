@@ -1,0 +1,27 @@
+  DECLARE active_logical_gb_price FLOAT64 DEFAULT 0.02;
+  DECLARE long_term_logical_gb_price FLOAT64 DEFAULT 0.01; 
+
+  WITH
+    storage_sizes AS (
+      SELECT
+        table_schema AS dataset_name,
+        SUM(active_logical_bytes) / power(1024, 3) AS active_logical_gb,
+        SUM(long_term_logical_bytes) / power(1024, 3) AS long_term_logical_gb,
+        SUM(total_logical_bytes) / power(1024, 3) AS total_logical_gb
+      FROM
+        region-us.INFORMATION_SCHEMA.TABLE_STORAGE_BY_PROJECT
+      WHERE
+        total_logical_bytes > 0
+      GROUP BY 1
+    )
+  SELECT
+    dataset_name,
+    active_logical_gb,
+    long_term_logical_gb,
+    active_logical_gb * active_logical_gb_price AS active_logical_cost,
+    long_term_logical_gb * long_term_logical_gb_price AS long_term_logical_cost
+  FROM
+    storage_sizes
+  ORDER BY
+    long_term_logical_cost DESC;
+ 
